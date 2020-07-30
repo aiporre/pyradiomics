@@ -17,6 +17,9 @@ import six.moves
 
 import radiomics.featureextractor
 from . import segment, voxel
+import SimpleITK as sitk
+
+from .. import imageoperations
 
 
 class PyRadiomicsCommandLine:
@@ -117,6 +120,9 @@ class PyRadiomicsCommandLine:
     parser.add_argument('--label', '-l', metavar='N', default=None, type=int,
                         help='(DEPRECATED) Value of label in mask to use for\n'
                              'feature extraction.')
+    parser.add_argument('--multilabel', '-L', action='store_true',
+                        help='Creates cases for each label in the mask for\n'
+                             'feature extraction.')
 
     parser.add_argument('--version', action='version', help='Print version and exit',
                         version='%(prog)s ' + radiomics.__version__)
@@ -152,6 +158,16 @@ class PyRadiomicsCommandLine:
 
     self.case_count = 1
     self.num_workers = 1
+    def _get_mask_labels(mPath):
+      if isinstance(mPath, six.string_types) and os.path.isfile(mPath):
+        if mPath.endswith('.tiff') or mPath.endswith('.tif'):
+          _mask = sitk.ReadImage(mPath, sitk.sitkUInt32)
+        else:
+          _mask = sitk.ReadImage(mPath)
+        # process the mask
+        return imageoperations.getMask(_mask, label_list=True)
+      else:
+        raise FileNotFoundError(f'mask file {mPath} not found')
 
     # Check if input represents a batch file
     if self.args.input.endswith('.csv'):
@@ -181,15 +197,25 @@ class PyRadiomicsCommandLine:
           if not os.path.isabs(maPath):
             maPath = os.path.abspath(os.path.join(self.relative_path_start, maPath))
             self.logger.debug('Considered mask filepath to be relative to input CSV. Absolute path: %s', maPath)
-          cases.append(row)
-          cases[-1]['Image'] = imPath
-          cases[-1]['Mask'] = maPath
-
+          if self.args.multilabel:
+            labels = _get_mask_labels(maPath)
+            for label in labels:
+              cases.append(row)
+              cases[-1]['Image'] = imPath
+              cases[-1]['Mask'] = maPath
+              cases[-1]['Label'] = int(label)
           self.case_count = len(cases)
         caseGenerator = enumerate(cases, start=1)
         self.num_workers = min(self.case_count, self.args.jobs)
     elif self.args.mask is not None:
-      caseGenerator = [(1, {'Image': self.args.input, 'Mask': self.args.mask})]
+      if self.args.multilabel:
+        cases = []
+        labels = _get_mask_labels(self.args.mask)
+        for label in labels:
+          cases.append( {'Image': self.args.input, 'Mask': self.args.mask, 'Label': int(label)})
+        caseGenerator = enumerate(cases, start=1)
+      else:
+        caseGenerator = [(1, {'Image': self.args.input, 'Mask': self.args.mask})]
     else:
       self.logger.error('Input is not recognized as batch, no mask specified, cannot compute result!')
       return None

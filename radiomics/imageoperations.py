@@ -30,6 +30,7 @@ def getMask(mask, **kwargs):
   global logger
   label = kwargs.get('label', 1)
   label_channel = kwargs.get('label_channel', 0)
+  n_components = mask.GetNumberOfComponentsPerPixel()
   if 'vector' in mask.GetPixelIDTypeAsString().lower():
     logger.debug('Mask appears to be a segmentation object (=stored as vector image).')
     n_components = mask.GetNumberOfComponentsPerPixel()
@@ -40,13 +41,19 @@ def getMask(mask, **kwargs):
     selector = sitk.VectorIndexSelectionCastImageFilter()
     selector.SetIndex(label_channel)
     mask = selector.Execute(mask)
-
   logger.debug('Force casting mask to UInt32 to ensure correct datatype.')
   mask = sitk.Cast(mask, sitk.sitkUInt32)
 
-  labels = numpy.unique(sitk.GetArrayFromImage(mask))
+  mask_array = sitk.GetArrayFromImage(mask)
+  labels = numpy.unique(mask_array)
   if len(labels) == 1:
     raise ValueError('No labels found in this mask (i.e. nothing is segmented)!')
+
+  if kwargs.get('label_list', False):
+    labels = labels.tolist()
+    labels.pop(0)
+    return labels
+
   if label not in labels:
     raise ValueError('Label (%g) not present in mask. Choose from %s' % (label, labels[labels != 0]))
 
