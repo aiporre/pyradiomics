@@ -170,6 +170,8 @@ class PyRadiomicsCommandLine:
         raise FileNotFoundError(f'mask file {mPath} not found')
 
     # Check if input represents a batch file
+    print('=------>  self.args.input',  self.args.input)
+    print('----> self.args.input.endswith(\'.csv\'), ', self.args.input.endswith('.csv'))
     if self.args.input.endswith('.csv'):
       self.logger.debug('Loading batch file "%s"', self.args.input)
       self.relative_path_start = os.path.dirname(self.args.input)
@@ -204,8 +206,13 @@ class PyRadiomicsCommandLine:
               cases[-1]['Image'] = imPath
               cases[-1]['Mask'] = maPath
               cases[-1]['Label'] = int(label)
+          else:
+            cases.append(row)
+            cases[-1]['Image'] = imPath
+            cases[-1]['Mask'] = maPath
           self.case_count = len(cases)
         caseGenerator = enumerate(cases, start=1)
+        print('________________> CASE COUNT: ', self.case_count)
         self.num_workers = min(self.case_count, self.args.jobs)
     elif self.args.mask is not None:
       if self.args.multilabel:
@@ -298,6 +305,7 @@ class PyRadiomicsCommandLine:
       # No cases defined in the batch
       self.logger.error('No cases to process...')
       results = None
+
     return results
 
   def _processOutput(self, results):

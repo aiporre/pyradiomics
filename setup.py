@@ -86,7 +86,9 @@ setup(
 
   entry_points={
     'console_scripts': [
-      'pyradiomics=radiomics.scripts.__init__:parse_args'
+      'pyradiomics=radiomics.scripts.__init__:parse_args',
+      'makecases=radiomics.scripts.make_batch:parse_args'
+
     ]},
 
   description='Radiomics features library for python',
