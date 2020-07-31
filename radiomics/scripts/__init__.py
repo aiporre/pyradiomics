@@ -170,8 +170,6 @@ class PyRadiomicsCommandLine:
         raise FileNotFoundError(f'mask file {mPath} not found')
 
     # Check if input represents a batch file
-    print('=------>  self.args.input',  self.args.input)
-    print('----> self.args.input.endswith(\'.csv\'), ', self.args.input.endswith('.csv'))
     if self.args.input.endswith('.csv'):
       self.logger.debug('Loading batch file "%s"', self.args.input)
       self.relative_path_start = os.path.dirname(self.args.input)
@@ -201,8 +199,10 @@ class PyRadiomicsCommandLine:
             self.logger.debug('Considered mask filepath to be relative to input CSV. Absolute path: %s', maPath)
           if self.args.multilabel:
             labels = _get_mask_labels(maPath)
+            print(labels)
+            cnt = 0
             for label in labels:
-              cases.append(row)
+              cases.append(row.copy())
               cases[-1]['Image'] = imPath
               cases[-1]['Mask'] = maPath
               cases[-1]['Label'] = int(label)
@@ -212,7 +212,7 @@ class PyRadiomicsCommandLine:
             cases[-1]['Mask'] = maPath
           self.case_count = len(cases)
         caseGenerator = enumerate(cases, start=1)
-        print('________________> CASE COUNT: ', self.case_count)
+        print('----> CASE COUNT: ', self.case_count)
         self.num_workers = min(self.case_count, self.args.jobs)
     elif self.args.mask is not None:
       if self.args.multilabel:
@@ -296,11 +296,13 @@ class PyRadiomicsCommandLine:
       self.logger.info('Input valid, starting sequential extraction from %d case(s)...',
                        self.case_count)
       results = []
-      for case in case_generator:
+      for case_count, case in enumerate(case_generator):
+        print('Processing: ', case[0], '(', case_count + 1, ' out of', self.case_count, ')')
         results.append(self.serial_func(*case,
                                         extractor=extractor,
                                         out_dir=self.args.out_dir,
                                         unix_path=self.args.unix_path))
+
     else:
       # No cases defined in the batch
       self.logger.error('No cases to process...')
